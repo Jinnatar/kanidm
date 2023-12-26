@@ -58,7 +58,7 @@ jobs:
       - name: Upload debs
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-packages
+          name: ${{ matrix.image }}-packages
           path: |
             target/*.deb
   upload-to-releases:
@@ -69,19 +69,31 @@ jobs:
     name: Upload to releases
     needs: build-deb-package
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/master' && github.repository == 'kanidm/kanidm' }}
+    strategy:
+      matrix:
+        image:
+          - ubuntu:22.04
+          - debian:12
+    # TODO: re-enable this check once the release mechanism is proven to work
+    #if: ${{ github.ref == 'refs/heads/master' && github.repository == 'kanidm/kanidm' }}
     steps:
+      - name: Split image name
+        env:
+          IMAGE: ${{ matrix.image }}
+        id: split
+        run: echo "::set-output name=distro::${IMAGE%:*}"
+
       - name: Download previously built debs
         uses: actions/download-artifact@v4
         with:
-          name: ubuntu-packages
+          name: ${{ steps.split.outputs.distro }}-packages
       - name: List packages
         run: |
           ls
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "debs"
+          automatic_release_tag: "${{ steps.split.outputs.distro }}-debs"
           prerelease: true
           title: ".deb Packages"
           files: "*.deb"
