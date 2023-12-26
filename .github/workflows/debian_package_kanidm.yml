@@ -8,6 +8,7 @@ name: "Build Deb Packages"
 env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
+  BUILD_DIR: "/build"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,6 +33,13 @@ jobs:
       - name: install curl
         run: |
           apt-get update && apt-get install -y curl
+      - if: ${{ env.ACT }}
+        name: Hack container for local development
+        run: |
+            curl -SLO https://deb.nodesource.com/nsolid_setup_deb.sh
+            chmod 500 nsolid_setup_deb.sh
+            ./nsolid_setup_deb.sh 20
+            apt-get install -y --no-install-recommends nodejs
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.3
         with:
@@ -52,7 +60,7 @@ jobs:
         with:
           name: ubuntu-packages
           path: |
-            build/target/*.deb
+            target/*.deb
   upload-to-releases:
     permissions:
       # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
