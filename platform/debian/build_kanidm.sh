@@ -8,8 +8,8 @@ if [ -z "${ARCH}" ]; then
     ARCH="$(dpkg --print-architecture)"
 fi
 
-if [ "${ARCH}" -ne "$(dpkg --print-architecture)" ]; then
-    echo "${ARCH} -ne $(dpkg --print-architecture), cross-compiling!"
+if [ "${ARCH}" != "$(dpkg --print-architecture)" ]; then
+    echo "${ARCH} != $(dpkg --print-architecture), cross-compiling!"
     export PKG_CONFIG_ALLOW_CROSS=1
 
 fi
@@ -31,10 +31,16 @@ echo "Building ${PACKAGE}"
 
 if [ -n "${GITHUB_WORKSPACE}" ]; then
     SOURCE_DIR="${GITHUB_WORKSPACE}"
+    echo "Source dir set by GITHUB_WORKSPACE: ${SOURCE_DIR}"
 else
-    SOURCE_DIR="${HOME}/kanidm"
+    SOURCE_DIR="$(dirname "$0")/../.."
+    echo "Source dir set relative from build script: ${SOURCE_DIR}"
 fi
-BUILD_DIR="$HOME/build"
+if [[ -z "$BUILD_DIR" ]]; then
+	echo "No BUILD_DIR specified, using a temporary one."
+	BUILD_DIR="$(mktemp -d)"
+fi
+echo "Build dir set to: $BUILD_DIR"
 
 if [ -z "${SKIP_DEPS}" ]; then
     PACKAGING=1 ./scripts/install_ubuntu_dependencies.sh
@@ -70,22 +76,21 @@ DATESTR="$(date +%Y%m%d%H%M)"
 PACKAGE_VERSION="${KANIDM_VERSION}-${DATESTR}${GIT_COMMIT}"
 echo "Package Version: ${PACKAGE_VERSION}"
 
-echo "Updating package dir"
+echo "Resetting BUILD_DIR: ${BUILD_DIR}"
 rm -rf "${BUILD_DIR:?}/*"
 
-echo "Copying source files to ${BUILD_DIR}"
+echo "Copying source files ${SOURCE_DIR}/ -> ${BUILD_DIR}"
 rsync -a \
     --exclude target \
-    "${SOURCE_DIR}" \
-    "${BUILD_DIR}/"
+    "${SOURCE_DIR}/" \
+    "${BUILD_DIR}"
 
-echo "Copying the debian-specific build files"
-cd "${BUILD_DIR}/kanidm"
+echo "Copying debian-specific files from $PWD/platform/debian/packaging/"
+cd "$BUILD_DIR"
 rm -rf debian && mkdir -p debian
 cp -R platform/debian/packaging/* debian/
 
 if [ -d "platform/debian/${PACKAGE}/" ]; then
-    echo "Copying debian-specific files for ${PACKAGE}"
     # shellcheck disable=SC2086
     cp platform/debian/${PACKAGE}/* debian/
 else
