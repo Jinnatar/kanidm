@@ -45,12 +45,14 @@ jobs:
         run: cargo install wasm-pack
       - name: Build packages (kanidm-unixd)
         run: make -f platform/debian/Makefile debs/kanidm-unixd
+      - name: Build packages (kanidm cli)
+        run: make -f platform/debian/Makefile debs/kanidm
       - name: Upload debs
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-packages
           path: |
-            target/*.deb
+            build/target/*.deb
   upload-to-releases:
     permissions:
       # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
