@@ -2,10 +2,9 @@
 
 # Starts a ubuntu docker container with the source code mounted
 
-if [ "$(basename "$(pwd)")" != "kanidm" ]; then
-    echo "Please run this from the root dir of the repo"
-    exit 1
-fi
+# Operate from the root directory of the repo, aka two steps up from the script
+cd "$(dirname $0)/../../"
+echo "Running in $PWD"
 
 echo "Starting base ubuntu container"
 echo "Repository is in ~/kanidm/"
