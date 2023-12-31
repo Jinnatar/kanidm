@@ -73,20 +73,12 @@ jobs:
       - name: List packages
         run: |
           find $(pwd) -name '*.deb'
-      - name: Generate changelog with git-cliff
-        #if: ${{ github.ref == 'refs/heads/master' && github.repository == 'kanidm/kanidm' }}
-        uses: tj-actions/git-cliff@v1
-        with:
-          args: --latest --strip all
-          output: "CHANGELOG.md"
-
       - name: Create debs Release
         #if: ${{ github.ref == 'refs/heads/master' && github.repository == 'kanidm/kanidm' }}
         uses: ncipollo/release-action@v1
         with:
           artifacts: "debs/*.deb"
           token: ${{ secrets.GITHUB_TOKEN }}
-          bodyFile: "CHANGELOG.md"
           tag: "debs"
           name: ".deb Packages"
           prerelease: true
