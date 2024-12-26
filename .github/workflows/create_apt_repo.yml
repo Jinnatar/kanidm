@@ -36,7 +36,7 @@ jobs:
             ref: 1.3.0
             # While the repo is in "dirty hack" mode, we only publish the latest patch of every minor version.
           - name: stable
-            ref: v1.4.4
+            ref: v1.4.5
           - name: nightly
             ref: master
         os:
@@ -56,18 +56,33 @@ jobs:
           # TODO: revert the event_name to 'schedule' once done with testing
           - category: {name: "${{ github.event_name == 'pull_request' && 'stable' }}"}
     steps:
-      # Step 0. Pick up the stable or nightly source
-      - name: Checkout Kanidm
+      # Step 0. Pick up the toolchain & target refs.
+      # Default source ref: We use only the toolchain from this, not the target source
+      - name: Checkout source ref
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: "platform/debian"
+          path: toolchain_ref
+      # Target ref: We use the source code & package definitions from this
+      - name: Checkout target ref
         uses: actions/checkout@v4
         with:
           repository: "kanidm/kanidm"
           ref: "${{ matrix.category.ref }}"
-          submodules: false
+          path: target_ref
+      # Smush together the two checkouts so we have a single interleaved view with the target source but new tools
+      - name: Merge checkouts
+        run: |
+          rm -fr target_ref/platform/debian
+          mv toolchain_ref/platform/debian target_ref/platform/debian
+          rm -fr toolchain_ref
+          mv target_ref/* target_ref/.* ./
+
+      # Step 0.5. Get a bunch of tools and dependencies
       - name: Amend PATH
         run: |
           mkdir "${HOME}/bin"
           echo "${HOME}/bin" >> $GITHUB_PATH
-      # Step 0.5. Get a bunch of tools and dependencies
       - name: Install UBI
         shell: bash
         run: |
@@ -86,6 +101,7 @@ jobs:
         run: |
             sudo -E platform/debian/scripts/install_ci_build_dependencies.sh \
               "${{ matrix.target.debian-name }}"
+
       # Step 1. Crossbuild
       - name: Build packages (cross bins & libs)
         shell: bash
@@ -94,6 +110,7 @@ jobs:
             "${{ matrix.os }}-${{ matrix.target.name }}"
         env:
           VERBOSE: true
+
       # Step 1.5. Strip binaries
       # This significantly helps with storage limits.
       # ~12 MiB packages vs ~82MiB packages as of 2024.
@@ -102,6 +119,7 @@ jobs:
         run: |
           find "target/${{ matrix.target.name }}/release" -maxdepth 1 -not -name "*.d" -name "kanidm*" \
           | xargs llvm-strip --strip-all
+
       # Step 2. deb build
       - name: Build packages (debs)
         run: |
